@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="fr" x-data="app()" x-init="init()">
+<head>
+  <!-- PASSWORD AUTH -->
+  <script>
+    // SHA-256 hash of "BabaCoaching" — mot de passe jamais en clair dans le code
+    const HASH = '02838bb3b42ffced3c4551302fc789b63623632826a3052fa73630800270bad1';
+
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function checkPw() {
+      const input = document.getElementById('pw-input');
+      const err   = document.getElementById('pw-err');
+      const hash  = await sha256(input.value);
+      if (hash === HASH) {
+        sessionStorage.setItem('auth', '1');
+        document.getElementById('pw-gate').classList.add('hidden');
+      } else {
+        input.classList.add('error');
+        err.textContent = 'Mot de passe incorrect.';
+        setTimeout(() => input.classList.remove('error'), 400);
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('auth') === '1') {
+        document.getElementById('pw-gate').classList.add('hidden');
+      }
+      document.getElementById('pw-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') checkPw();
+        document.getElementById('pw-err').textContent = '';
+      });
+    });
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Système Fluide — Guide Scientifique Complet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            base: '#07090E',
+            surface: '#0C0F17',
+            card: '#111520',
+            elevated: '#161B28',
+            border: 'rgba(255,255,255,0.07)',
+            cyan: { DEFAULT: '#00D4FF', dim: 'rgba(0,212,255,0.12)', glow: 'rgba(0,212,255,0.25)' },
+            emerald: { DEFAULT: '#00E587', dim: 'rgba(0,229,135,0.12)', glow: 'rgba(0,229,135,0.25)' },
+            violet: { DEFAULT: '#8B5CF6', dim: 'rgba(139,92,246,0.12)', glow: 'rgba(139,92,246,0.25)' },
+            amber: { DEFAULT: '#F59E0B', dim: 'rgba(245,158,11,0.10)', glow: 'rgba(245,158,11,0.25)' },
+            rose: { DEFAULT: '#F43F5E', dim: 'rgba(244,63,94,0.10)', glow: 'rgba(244,63,94,0.25)' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* ===== PASSWORD GATE ===== */
+    #pw-gate {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #07090E;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #pw-gate::before {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);
+      background-size:48px 48px;
+    }
+    #pw-box {
+      position: relative; width: 340px;
+      background: #111520; border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 16px; padding: 36px 32px;
+      box-shadow: 0 0 60px rgba(0,212,255,0.07), 0 24px 48px rgba(0,0,0,0.5);
+    }
+    #pw-logo {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase; color: #00D4FF;
+      margin-bottom: 6px;
+    }
+    #pw-title {
+      font-size: 20px; font-weight: 700; color: #D1D9E8;
+      margin-bottom: 4px; letter-spacing: -0.02em;
+    }
+    #pw-sub { font-size: 12px; color: #64748B; margin-bottom: 28px; }
+    #pw-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; color: #64748B;
+      display: block; margin-bottom: 6px;
+    }
+    #pw-input {
+      width: 100%; background: #161B28; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #D1D9E8;
+      font-family: 'JetBrains Mono', monospace; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s; margin-bottom: 14px;
+    }
+    #pw-input:focus { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
+    #pw-input.error { border-color: rgba(244,63,94,0.6); box-shadow: 0 0 0 3px rgba(244,63,94,0.08); animation: shake 0.35s; }
+    #pw-btn {
+      width: 100%; padding: 11px; border-radius: 8px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, rgba(0,212,255,0.18), rgba(139,92,246,0.18));
+      border: 1px solid rgba(0,212,255,0.35); color: #00D4FF;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    #pw-btn:hover { background: linear-gradient(135deg, rgba(0,212,255,0.28), rgba(139,92,246,0.28)); box-shadow: 0 0 20px rgba(0,212,255,0.15); }
+    #pw-err {
+      font-size: 11px; color: #F87171; text-align: center;
+      margin-top: 10px; min-height: 16px; font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 60%{transform:translateX(6px)} 80%{transform:translateX(-3px)}
+    }
+    #pw-gate.hidden { display: none; }
+  </style>
+  <style>
+    * { box-sizing: border-box; }
+    body { background:#07090E; color:#D1D9E8; font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+    
+    /* Grid overlay */
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:linear-gradient(rgba(0,212,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.02) 1px,transparent 1px);
+      background-size:48px 48px;
+    }
+    /* Top glow */
+    body::after {
+      content:''; position:fixed; top:-200px; left:50%; transform:translateX(-50%);
+      width:900px; height:400px; pointer-events:none; z-index:0;
+      background:radial-gradient(ellipse,rgba(0,212,255,0.05) 0%,transparent 70%);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:rgba(0,212,255,0.4); }
+
+    /* Sidebar */
+    .sidebar { position:fixed; top:0; left:0; height:100vh; width:240px; background:#0C0F17; border-right:1px solid rgba(255,255,255,0.07); z-index:50; display:flex; flex-direction:column; overflow-y:auto; transition:transform 0.3s ease; }
+    .sidebar-link { display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:12px; color:#64748B; border-radius:6px; margin:1px 8px; transition:all 0.15s; cursor:pointer; text-decoration:none; white-space:nowrap; }
+    .sidebar-link:hover { background:rgba(0,212,255,0.06); color:#00D4FF; }
+    .sidebar-link.active { background:rgba(0,212,255,0.1); color:#00D4FF; }
+    .sidebar-link .dot { width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
+    .sidebar-group { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#374151; padding:12px 24px 4px; font-family:'JetBrains Mono',monospace; }
+
+    /* Content */
+    .content { margin-left:240px; position:relative; z-index:1; }
+
+    /* Cards */
+    .sf-card { background:#111520; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:20px; transition:border-color 0.2s; }
+    .sf-card:hover { border-color:rgba(0,212,255,0.15); }
+    .sf-card-cyan { background:rgba(0,212,255,0.04); border-color:rgba(0,212,255,0.15); border-radius:12px; padding:20px; }
+    .sf-card-violet { background:rgba(139,92,246,0.04); border-color:rgba(139,92,246,0.15); border-radius:12px; padding:20px; }
+    .sf-card-emerald { background:rgba(0,229,135,0.04); border-color:rgba(0,229,135,0.15); border-radius:12px; padding:20px; }
+    .sf-card-amber { background:rgba(245,158,11,0.04); border-color:rgba(245,158,11,0.15); border-radius:12px; padding:20px; }
+    .sf-card-rose { background:rgba(244,63,94,0.04); border-color:rgba(244,63,94,0.15); border-radius:12px; padding:20px; }
+
+    /* Metric */
+    .metric-val { font-size:28px; font-weight:700; letter-spacing:-0.03em; line-height:1; font-family:'JetBrains Mono',monospace; }
+    .metric-label { font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px; font-family:'JetBrains Mono',monospace; }
+    .metric-sub { font-size:11px; color:#64748B; margin-top:4px; line-height:1.4; }
+
+    /* Section title */
+    .section-label { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.07); }
+    .section-label.cyan { color:#00D4FF; border-color:rgba(0,212,255,0.15); }
+    .section-label.violet { color:#8B5CF6; border-color:rgba(139,92,246,0.2); }
+    .section-label.emerald { color:#00E587; border-color:rgba(0,229,135,0.15); }
+
+    /* Badges/pills */
+    .badge { display:inline-flex; align-items:center; font-size:10px; font-weight:700; letter-spacing:0.04em; padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono',monospace; }
+    .badge-cyan { background:rgba(0,212,255,0.1); color:#00D4FF; border:1px solid rgba(0,212,255,0.2); }
+    .badge-violet { background:rgba(139,92,246,0.1); color:#A78BFA; border:1px solid rgba(139,92,246,0.2); }
+    .badge-emerald { background:rgba(0,229,135,0.1); color:#00E587; border:1px solid rgba(0,229,135,0.2); }
+    .badge-amber { background:rgba(245,158,11,0.1); color:#F59E0B; border:1px solid rgba(245,158,11,0.2); }
+    .badge-rose { background:rgba(244,63,94,0.1); color:#F87171; border:1px solid rgba(244,63,94,0.2); }
+    .badge-gray { background:rgba(255,255,255,0.05); color:#64748B; border:1px solid rgba(255,255,255,0.1); }
+
+    /* Alerts */
+    .alert { padding:12px 16px; border-radius:8px; font-size:12px; line-height:1.6; }
+    .alert strong { font-weight:600; }
+    .alert-cyan { background:rgba(0,212,255,0.07); border:1px solid rgba(0,212,255,0.2); color:#67E8F9; }
+    .alert-violet { background:rgba(139,92,246,0.07); border:1px solid rgba(139,92,246,0.2); color:#C4B5FD; }
+    .alert-amber { background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.2); color:#FCD34D; }
+    .alert-rose { background:rgba(244,63,94,0.07); border:1px solid rgba(244,63,94,0.2); color:#FCA5A5; }
+    .alert-emerald { background:rgba(0,229,135,0.07); border:1px solid rgba(0,229,135,0.2); color:#6EE7B7; }
+
+    /* Tabs */
+    .tab-btn { font-size:11px; padding:7px 16px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:#161B28; color:#64748B; cursor:pointer; transition:all 0.15s; font-family:'JetBrains Mono',monospace; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; }
+    .tab-btn:hover { border-color:rgba(0,212,255,0.3); color:#00D4FF; }
+    .tab-btn.active { background:rgba(0,212,255,0.1); border-color:rgba(0,212,255,0.4); color:#00D4FF; }
+    .tab-btn.active-violet { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.4); color:#A78BFA; }
+
+    /* Tables */
+    .sf-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .sf-table th { font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; color:#00D4FF; padding:10px 12px; border-bottom:1px solid rgba(0,212,255,0.2); text-align:left; }
+    .sf-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.05); color:#D1D9E8; vertical-align:top; line-height:1.5; }
+    .sf-table tr:last-child td { border-bottom:none; }
+    .sf-table tr:hover td { background:rgba(0,212,255,0.02); }
+    .sf-table thead { background:rgba(0,212,255,0.06); }
+    .sf-table-violet th { color:#A78BFA; border-color:rgba(139,92,246,0.2); }
+    .sf-table-violet thead { background:rgba(139,92,246,0.06); }
+
+    /* Inputs */
+    .sf-input { background:#161B28; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 12px; font-size:13px; color:#D1D9E8; font-family:'JetBrains Mono',monospace; outline:none; transition:border-color 0.15s; width:100%; }
+    .sf-input:focus { border-color:rgba(0,212,255,0.5); box-shadow:0 0 0 3px rgba(0,212,255,0.07); }
+    .sf-select { background:#161B28; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 12px; font-size:12px; color:#D1D9E8; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.15s; width:100%; cursor:pointer; }
+    .sf-select:focus { border-color:rgba(0,212,255,0.5); }
+    .sf-label { font-size:11px; font-weight:600; color:#64748B; margin-bottom:4px; display:block; font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.06em; }
+
+    /* Steps */
+    .sf-step { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
+    .step-num-c { min-width:24px; height:24px; border-radius:50%; background:rgba(0,212,255,0.15); color:#00D4FF; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'JetBrains Mono',monospace; }
+    .step-num-v { min-width:24px; height:24px; border-radius:50%; background:rgba(139,92,246,0.15); color:#A78BFA; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:'JetBrains Mono',monospace; }
+    .sf-step-text { font-size:13px; color:#D1D9E8; line-height:1.5; }
+    .sf-step-text span { display:block; font-size:11px; color:#64748B; margin-top:2px; }
+
+    /* Progress bar */
+    .prog-bar { height:6px; border-radius:3px; overflow:hidden; background:rgba(255,255,255,0.07); }
+    .prog-fill { height:100%; border-radius:3px; transition:width 0.6s cubic-bezier(.4,0,.2,1); }
+
+    /* Rep blocks */
+    .rep-block { height:24px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; transition:all 0.3s; font-family:'JetBrains Mono',monospace; min-width:30px; }
+
+    /* Warn rows */
+    .warn-row { display:flex; gap:10px; align-items:flex-start; margin:8px 0; }
+    .warn-text { font-size:12px; color:#8892A4; line-height:1.5; }
+    .warn-text strong { color:#D1D9E8; }
+
+    /* Mobile */
+    @media(max-width:768px) {
+      .sidebar { transform:translateX(-100%); }
+      .sidebar.open { transform:translateX(0); }
+      .content { margin-left:0; }
+      .mobile-header { display:flex; }
+    }
+    @media(min-width:769px) {
+      .mobile-header { display:none !important; }
+    }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .anim { animation:fadeUp 0.4s ease both; }
+    
+    /* Section anchor padding */
+    .section-anchor { padding-top:80px; margin-top:-60px; }
+
+    /* Glow line top of card */
+    .glow-top::before { content:''; display:block; height:1px; background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent); margin-bottom:20px; }
+  </style>
+</head>
+<body>
+
+<!-- ===== PASSWORD GATE ===== -->
+<div id="pw-gate">
+  <div id="pw-box">
+    <div id="pw-logo">Baba Coaching</div>
+    <div id="pw-title">Accès Restreint</div>
+    <div id="pw-sub">Entrez le mot de passe pour accéder au guide.</div>
+    <label id="pw-label" for="pw-input">Mot de passe</label>
+    <input id="pw-input" type="password" placeholder="••••••••••••" autocomplete="current-password" />
+    <button id="pw-btn" onclick="checkPw()">Accéder →</button>
+    <div id="pw-err"></div>
+  </div>
+</div>
+<!-- ===== / PASSWORD GATE ===== -->
+
+<!-- MOBILE HEADER -->
+<div class="mobile-header fixed top-0 left-0 right-0 z-50 bg-surface border-b border-white border-opacity-10 px-4 h-12 flex items-center justify-between" style="background:#0C0F17">
+  <span class="text-xs font-bold font-mono text-cyan-DEFAULT tracking-widest uppercase">Système Fluide</span>
+  <button @click="sidebarOpen=!sidebarOpen" class="text-gray-400 hover:text-white p-1">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="17" y2="6"/><line x1="3" y1="12" x2="17" y2="12"/><line x1="3" y1="18" x2="17" y2="18"/></svg>
+  </button>
+</div>
+<div x-show="sidebarOpen" @click="sidebarOpen=false" class="fixed inset-0 bg-black bg-opacity-60 z-40 md:hidden"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" :class="{'open': sidebarOpen}">
+  <div class="px-4 py-5 border-b" style="border-color:rgba(255,255,255,0.07)">
+    <div class="text-xs font-mono font-bold tracking-widest uppercase" style="color:#00D4FF">Système Fluide</div>
+    <div class="text-xs mt-1" style="color:#374151">Guide Scientifique Complet</div>
+  </div>
+
+  <div class="flex-1 py-3">
+    <div class="sidebar-group">Système</div>
+    <a href="#philosophie" class="sidebar-link" :class="{'active': activeSection==='philosophie'}"><span class="dot"></span>Philosophie</a>
+    <a href="#tdee" class="sidebar-link" :class="{'active': activeSection==='tdee'}"><span class="dot"></span>Calculateur TDEE</a>
+    <a href="#phases" class="sidebar-link" :class="{'active': activeSection==='phases'}"><span class="dot"></span>3 Phases</a>
+    <a href="#macros" class="sidebar-link" :class="{'active': activeSection==='macros'}"><span class="dot"></span>Répartition Macros</a>
+    <a href="#steps" class="sidebar-link" :class="{'active': activeSection==='steps'}"><span class="dot"></span>NEAT & Steps</a>
+    <a href="#erreurs" class="sidebar-link" :class="{'active': activeSection==='erreurs'}"><span class="dot"></span>Erreurs classiques</a>
+
+    <div class="sidebar-group" style="margin-top:8px">Entraînement</div>
+    <a href="#programmes" class="sidebar-link" :class="{'active': activeSection==='programmes'}"><span class="dot"></span>Programmes</a>
+    <a href="#principes" class="sidebar-link" :class="{'active': activeSection==='principes'}"><span class="dot"></span>Principes SF</a>
+    <a href="#supplements" class="sidebar-link" :class="{'active': activeSection==='supplements'}"><span class="dot"></span>Compléments</a>
+
+    <div class="sidebar-group" style="margin-top:8px">🔬 Science</div>
+    <a href="#hypertrophie" class="sidebar-link" :class="{'active': activeSection==='hypertrophie'}"><span class="dot"></span>1. Hypertrophie</a>
+    <a href="#mecanismes" class="sidebar-link" :class="{'active': activeSection==='mecanismes'}"><span class="dot"></span>2. Mécanismes</a>
+    <a href="#methode2" class="sidebar-link" :class="{'active': activeSection==='methode2'}"><span class="dot"></span>3. Méthode 2 Séries</a>
+    <a href="#surcharge" class="sidebar-link" :class="{'active': activeSection==='surcharge'}"><span class="dot"></span>4. Surcharge progressive</a>
+    <a href="#volume" class="sidebar-link" :class="{'active': activeSection==='volume'}"><span class="dot"></span>5. Volume</a>
+    <a href="#frequence" class="sidebar-link" :class="{'active': activeSection==='frequence'}"><span class="dot"></span>6. Fréquence</a>
+    <a href="#repos" class="sidebar-link" :class="{'active': activeSection==='repos'}"><span class="dot"></span>7. Temps de repos</a>
+    <a href="#neuro" class="sidebar-link" :class="{'active': activeSection==='neuro'}"><span class="dot"></span>8. Technique & ROM</a>
+    <a href="#recuperation" class="sidebar-link" :class="{'active': activeSection==='recuperation'}"><span class="dot"></span>9. Récupération</a>
+    <a href="#nutrition-sci" class="sidebar-link" :class="{'active': activeSection==='nutrition-sci'}"><span class="dot"></span>10. Nutrition science</a>
+    <a href="#glossaire" class="sidebar-link" :class="{'active': activeSection==='glossaire'}"><span class="dot"></span>Glossaire</a>
+    <a href="#ressources" class="sidebar-link" :class="{'active': activeSection==='ressources'}"><span class="dot"></span>Ressources</a>
+  </div>
+
+  <div class="px-4 py-4 border-t text-xs" style="border-color:rgba(255,255,255,0.07);color:#374151">
+    Lucas Gouiffes & Antoine GBZ<br>
+    <span style="color:#1E293B">patreon.com/SYSTEMEFLUIDE</span>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="content min-h-screen">
+  <div class="max-w-5xl mx-auto px-6 py-8 mt-12 md:mt-0">
+
+    <!-- HERO HEADER -->
+    <div class="anim mb-8 rounded-2xl overflow-hidden relative" style="background:linear-gradient(135deg,#0D1420 0%,#111520 50%,#0D1020 100%);border:1px solid rgba(0,212,255,0.15)">
+      <div class="absolute inset-0" style="background:radial-gradient(ellipse at 30% 50%,rgba(0,212,255,0.06) 0%,transparent 60%)"></div>
+      <div class="absolute top-0 left-0 right-0 h-px" style="background:linear-gradient(90deg,transparent,#00D4FF,#8B5CF6,#00E587,transparent)"></div>
+      <div class="relative px-8 py-8 flex items-center gap-8">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="badge badge-cyan">Méthode SF</span>
+            <span class="badge badge-violet">🔬 Science Hypertrophie</span>
+          </div>
+          <h1 class="text-3xl font-bold tracking-tight mb-2" style="background:linear-gradient(135deg,#E8EDF5,#00D4FF 60%,#8B5CF6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Le Système Fluide</h1>
+          <p class="text-sm" style="color:#475569;font-family:'JetBrains Mono',monospace">Sèche · PDM · Entraînement · Nutrition · Science</p>
+        </div>
+        <div class="hidden md:grid grid-cols-3 gap-3">
+          <div class="text-center">
+            <div class="metric-val text-cyan-DEFAULT text-2xl">2</div>
+            <div class="text-xs mt-1" style="color:#475569">Séries/exo</div>
+          </div>
+          <div class="text-center">
+            <div class="metric-val text-violet-DEFAULT text-2xl">4–8</div>
+            <div class="text-xs mt-1" style="color:#475569">Reps cible</div>
+          </div>
+          <div class="text-center">
+            <div class="metric-val text-emerald-DEFAULT text-2xl">14</div>
+            <div class="text-xs mt-1" style="color:#475569">Séries max/séance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= PHILOSOPHIE ======= -->
+    <section id="philosophie" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Philosophie du système</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div class="rounded-xl p-4" style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.12)">
+            <div class="metric-label" style="color:#00D4FF">Concept clé</div>
+            <div class="font-semibold text-sm leading-tight" style="color:#D1D9E8">Flux énergétique élevé</div>
+            <div class="metric-sub">Manger le plus possible tout en atteignant son objectif</div>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.12)">
+            <div class="metric-label" style="color:#8B5CF6">Objectif</div>
+            <div class="font-semibold text-sm leading-tight" style="color:#D1D9E8">Autonomie totale</div>
+            <div class="metric-sub">Ne plus dépendre de programmes figés</div>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.12)">
+            <div class="metric-label" style="color:#00E587">Progression</div>
+            <div class="font-semibold text-sm leading-tight" style="color:#D1D9E8">Infinie & adaptable</div>
+            <div class="metric-sub">Contexte de vie toujours prioritaire</div>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.12)">
+            <div class="metric-label" style="color:#F59E0B">NEAT central</div>
+            <div class="font-semibold text-sm leading-tight" style="color:#D1D9E8">Les "Steps"</div>
+            <div class="metric-sub">10 000 – 20 000 pas / jour recommandés</div>
+          </div>
+        </div>
+        <div class="alert alert-cyan text-sm">La logique centrale : <strong>manger beaucoup → bouger beaucoup → métabolisme élevé → rester sec plus facilement.</strong> Jamais l'inverse.</div>
+      </div>
+    </section>
+
+    <!-- ======= TDEE CALCULATOR ======= -->
+    <section id="tdee" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Calculateur TDEE — Mifflin-St Jeor</div>
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Inputs -->
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="sf-label">Sexe</label>
+                <select id="sexe" class="sf-select" x-on:change="calcMacros()">
+                  <option value="m">Homme</option>
+                  <option value="f">Femme</option>
+                </select>
+              </div>
+              <div>
+                <label class="sf-label">Âge</label>
+                <input type="number" id="age" value="25" min="15" max="80" class="sf-input" x-on:input="calcMacros()">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="sf-label">Poids (kg)</label>
+                <input type="number" id="poids" value="80" min="40" max="200" class="sf-input" x-on:input="calcMacros()">
+              </div>
+              <div>
+                <label class="sf-label">Taille (cm)</label>
+                <input type="number" id="taille" value="175" min="140" max="220" class="sf-input" x-on:input="calcMacros()">
+              </div>
+            </div>
+            <div>
+              <label class="sf-label">Niveau d'activité</label>
+              <select id="activite" class="sf-select" x-on:change="calcMacros()">
+                <option value="1.2">Sédentaire (bureau, peu de sport)</option>
+                <option value="1.375">Légèrement actif (1–3j/sem)</option>
+                <option value="1.55" selected>Modérément actif (3–5j/sem)</option>
+                <option value="1.725">Très actif (6–7j/sem intense)</option>
+                <option value="1.9">Extrêmement actif (athlète / job physique)</option>
+              </select>
+            </div>
+            <div>
+              <label class="sf-label">Objectif</label>
+              <select id="objectif" class="sf-select" x-on:change="calcMacros()">
+                <option value="seche">Sèche (déficit –300 kcal)</option>
+                <option value="seche_agg">Sèche agressive (déficit –500 kcal)</option>
+                <option value="maint">Maintenance</option>
+                <option value="pdm">PDM légère (surplus +200 kcal)</option>
+                <option value="pdm_agg">PDM (surplus +400 kcal)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div class="rounded-xl p-5" style="background:#0C0F17;border:1px solid rgba(255,255,255,0.07)">
+            <div class="text-xs font-mono font-bold tracking-widest uppercase mb-4 pb-3" style="color:#00D4FF;border-bottom:1px solid rgba(0,212,255,0.15)">Résultats</div>
+            <div class="space-y-2 mb-4">
+              <div class="flex justify-between items-center py-1">
+                <span class="text-xs" style="color:#64748B">BMR (Mifflin-St Jeor)</span>
+                <span class="text-sm font-mono font-bold" style="color:#D1D9E8" id="bmr-val">—</span>
+              </div>
+              <div class="flex justify-between items-center py-1">
+                <span class="text-xs" style="color:#64748B">TDEE (Maintenance)</span>
+                <span class="text-sm font-mono font-bold" style="color:#00E587" id="maint-cal">—</span>
+              </div>
+              <div class="flex justify-between items-center py-2 rounded-lg px-3" style="background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.15)">
+                <span class="text-xs font-bold" style="color:#00D4FF">Calories cible</span>
+                <span class="text-base font-mono font-bold" style="color:#00D4FF" id="cible-cal">—</span>
+              </div>
+            </div>
+            <!-- Macro bar -->
+            <div id="macro-bar-visual" class="h-2 rounded-full overflow-hidden flex mb-2" style="background:rgba(255,255,255,0.05)"></div>
+            <div id="macro-legend" class="flex gap-3 flex-wrap mb-4" style="font-size:10px;color:#64748B"></div>
+            <!-- Macros -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs" style="color:#64748B">Protéines</span>
+                <span class="text-xs font-mono font-bold" style="color:#00E587" id="proto">—</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs" style="color:#64748B">Lipides</span>
+                <span class="text-xs font-mono font-bold" style="color:#F59E0B" id="lipides">—</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs" style="color:#64748B">Glucides</span>
+                <span class="text-xs font-mono font-bold" style="color:#00D4FF" id="glucides">—</span>
+              </div>
+            </div>
+            <!-- Donut chart -->
+            <div class="mt-4 flex justify-center">
+              <div style="position:relative;width:120px;height:120px">
+                <canvas id="macroDonut"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-amber mt-4 text-xs"><strong>Méthode SF :</strong> commencer à la maintenance 2 semaines, se peser chaque matin (moyenne hebdo). Si le poids ne bouge pas → maintenance réelle trouvée. Ajuster ensuite par l'activité (steps) avant de toucher aux calories.</div>
+      </div>
+    </section>
+
+    <!-- ======= PHASES ======= -->
+    <section id="phases" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Les 3 phases du Système Fluide</div>
+        <div class="flex gap-2 mb-4 flex-wrap">
+          <button @click="phase='seche'" :class="phase==='seche'?'active':''" class="tab-btn">Sèche</button>
+          <button @click="phase='pdm'" :class="phase==='pdm'?'active':''" class="tab-btn">Prise de masse</button>
+          <button @click="phase='maint'" :class="phase==='maint'?'active':''" class="tab-btn">Maintenance</button>
+        </div>
+        <!-- SECHE -->
+        <div x-show="phase==='seche'">
+          <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <div class="sf-card-emerald border">
+              <h3 class="text-sm font-semibold mb-3" style="color:#00E587">Nutrition — Sèche</h3>
+              <div class="space-y-2 text-xs" style="color:#8892A4">
+                <div><strong style="color:#D1D9E8">Déficit :</strong> 200–400 kcal sous maintenance</div>
+                <div><strong style="color:#D1D9E8">Rythme :</strong> 0,5–1% poids corporel / semaine</div>
+                <div><strong style="color:#D1D9E8">Protéines :</strong> 2–2,5 g/kg (haut pour préserver le muscle)</div>
+                <div><strong style="color:#D1D9E8">Lipides :</strong> min 0,8–1 g/kg (santé hormonale)</div>
+                <div><strong style="color:#D1D9E8">Glucides :</strong> à ajuster selon le reste</div>
+                <div><strong style="color:#D1D9E8">Approche :</strong> IIFYM / FDOE — flexibilité alimentaire</div>
+              </div>
+            </div>
+            <div class="sf-card-emerald border">
+              <h3 class="text-sm font-semibold mb-3" style="color:#00E587">NEAT & Cardio — Sèche</h3>
+              <div class="space-y-2 text-xs" style="color:#8892A4">
+                <div><strong style="color:#D1D9E8">Steps prioritaires :</strong> 10 000–20 000 / jour</div>
+                <div><strong style="color:#D1D9E8">Cardio optionnel :</strong> marche inclinée, vélo faible intensité</div>
+                <div><strong style="color:#D1D9E8">Créer le déficit par l'activité</strong> avant de couper les calories</div>
+                <div><strong style="color:#D1D9E8">Entraînement :</strong> maintenir l'intensité et les charges</div>
+                <div><strong style="color:#D1D9E8">Volume muscu :</strong> réduire si nécessaire, pas l'intensité</div>
+                <div><strong style="color:#D1D9E8">Break diet :</strong> semaine à maintenance si stagnation &gt; 2–3 sem</div>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-amber text-xs mb-3"><strong>Erreur classique :</strong> baisser trop les calories d'un coup → crash métabolique + perte musculaire. Privilégier toujours l'augmentation du NEAT (steps) avant de réduire l'assiette.</div>
+          <div class="sf-card">
+            <h4 class="text-xs font-bold mb-3" style="color:#64748B">Signaux de progression correcte</h4>
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-emerald">Perte 0,3–1%/semaine</span>
+              <span class="badge badge-emerald">Performances stables</span>
+              <span class="badge badge-emerald">Bonne énergie</span>
+              <span class="badge badge-emerald">Pas de faim excessive</span>
+              <span class="badge badge-rose">Stagnation &gt; 3 sem = ajuster</span>
+              <span class="badge badge-rose">Irritabilité forte = trop agressif</span>
+              <span class="badge badge-rose">Perte de force = trop vite</span>
+              <span class="badge badge-amber">Fluctuations normales (eau, sel)</span>
+            </div>
+          </div>
+        </div>
+        <!-- PDM -->
+        <div x-show="phase==='pdm'" style="display:none">
+          <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <div class="sf-card-cyan border">
+              <h3 class="text-sm font-semibold mb-3" style="color:#00D4FF">Nutrition — PDM</h3>
+              <div class="space-y-2 text-xs" style="color:#8892A4">
+                <div><strong style="color:#D1D9E8">Surplus :</strong> 200–400 kcal au-dessus maintenance</div>
+                <div><strong style="color:#D1D9E8">Rythme idéal :</strong> 0,25–0,5% poids corps / semaine</div>
+                <div><strong style="color:#D1D9E8">Protéines :</strong> 1,8–2,2 g/kg</div>
+                <div><strong style="color:#D1D9E8">Lipides :</strong> 0,8–1 g/kg (hormones testostérone)</div>
+                <div><strong style="color:#D1D9E8">Glucides :</strong> carburant principal — ne pas couper</div>
+                <div><strong style="color:#D1D9E8">Maintenir les steps :</strong> éviter la prise de gras excessive</div>
+              </div>
+            </div>
+            <div class="sf-card-cyan border">
+              <h3 class="text-sm font-semibold mb-3" style="color:#00D4FF">Entraînement — PDM</h3>
+              <div class="space-y-2 text-xs" style="color:#8892A4">
+                <div><strong style="color:#D1D9E8">Objectif :</strong> surcharge progressive sur chaque séance</div>
+                <div><strong style="color:#D1D9E8">Volume :</strong> augmenter progressivement semaine après semaine</div>
+                <div><strong style="color:#D1D9E8">Intensité :</strong> travailler proche de l'échec (1 RIR / RIR -1)</div>
+                <div><strong style="color:#D1D9E8">Fréquence :</strong> chaque muscle 2x/semaine minimum</div>
+                <div><strong style="color:#D1D9E8">Steps :</strong> maintenir pour rester "sec en PDM"</div>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-cyan text-xs mb-3"><strong>Clé de la PDM propre :</strong> surplus modéré + steps maintenus = muscle sans gras excessif. La vitesse de prise de poids est le meilleur indicateur — trop vite = trop de gras.</div>
+          <div class="sf-card">
+            <div class="flex flex-wrap gap-2">
+              <span class="badge badge-cyan">Progression des charges</span>
+              <span class="badge badge-cyan">Prise de poids lente et contrôlée</span>
+              <span class="badge badge-cyan">Pas de prise de gras visible</span>
+              <span class="badge badge-rose">Prise rapide &gt; 0,5%/sem = surplus trop élevé</span>
+              <span class="badge badge-amber">Stagnation charges = nutrition insuffisante</span>
+            </div>
+          </div>
+        </div>
+        <!-- MAINTENANCE -->
+        <div x-show="phase==='maint'" style="display:none">
+          <div class="sf-card-amber border mb-4">
+            <h3 class="text-sm font-semibold mb-3" style="color:#F59E0B">Maintenance optimisée — Le concept central du SF</h3>
+            <div class="space-y-2 text-xs" style="color:#8892A4">
+              <div><strong style="color:#D1D9E8">Définition :</strong> manger à sa vraie maintenance (souvent sous-estimée)</div>
+              <div><strong style="color:#D1D9E8">Durée :</strong> 2 semaines minimum pour trouver sa vraie maintenance</div>
+              <div><strong style="color:#D1D9E8">Méthode :</strong> peser chaque matin, faire la moyenne hebdomadaire</div>
+              <div><strong style="color:#D1D9E8">Ajustement :</strong> ajouter l'activité (steps) avant de modifier les calories</div>
+              <div><strong style="color:#D1D9E8">Utilité :</strong> phase de transition sèche → PDM / PDM → sèche</div>
+              <div><strong style="color:#D1D9E8">Régime inversé :</strong> remonter les calories progressivement après une sèche</div>
+            </div>
+          </div>
+          <div class="alert alert-amber text-xs"><strong>Piège fréquent :</strong> sous-estimer sa maintenance en se croyant "sédentaire" alors qu'on s'entraîne. Le SF insiste sur une maintenance réelle avec niveau d'activité honnête.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= MACROS ======= -->
+    <section id="macros" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Répartition macros selon l'objectif</div>
+        <div class="grid md:grid-cols-3 gap-4 mb-4">
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-3" style="color:#00E587">Sèche</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Protéines</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:45%;background:#00E587"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">2–2,5g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Lipides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:20%;background:#F59E0B"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">0,8–1g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Glucides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:35%;background:#00D4FF"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">Reste kcal</span></div>
+            </div>
+          </div>
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-3" style="color:#00D4FF">PDM</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Protéines</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:35%;background:#00E587"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">1,8–2,2g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Lipides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:20%;background:#F59E0B"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">0,8–1g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Glucides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:45%;background:#00D4FF"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">Max possible</span></div>
+            </div>
+          </div>
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-3" style="color:#F59E0B">Maintenance</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Protéines</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:38%;background:#00E587"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">1,8–2g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Lipides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:22%;background:#F59E0B"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">0,8–1g/kg</span></div>
+              <div class="flex items-center gap-2"><span class="text-xs w-20" style="color:#64748B">Glucides</span><div class="prog-bar flex-1"><div class="prog-fill" style="width:40%;background:#00D4FF"></div></div><span class="text-xs font-mono" style="color:#D1D9E8">Reste kcal</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-cyan text-xs"><strong>Principe IIFYM / FDOE :</strong> les sources alimentaires sont flexibles. Ce qui compte = les macros totales sur la journée. Pas de restriction d'aliments "interdits".</div>
+      </div>
+    </section>
+
+    <!-- ======= STEPS ======= -->
+    <section id="steps" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label emerald">NEAT — "Les Steps", pilier invisible du système</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div class="rounded-xl p-4 text-center" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.12)">
+            <div class="metric-val text-2xl" style="color:#00E587">10k</div>
+            <div class="metric-sub text-center">Minimum / jour</div>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.12)">
+            <div class="metric-val text-2xl" style="color:#00E587">15–20k</div>
+            <div class="metric-sub text-center">Niveau optimal SF</div>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.12)">
+            <div class="metric-val text-2xl" style="color:#00E587">~70</div>
+            <div class="metric-sub text-center">kcal par 1 000 pas sup.</div>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.12)">
+            <div class="metric-val text-2xl" style="color:#00E587">∞</div>
+            <div class="metric-sub text-center">Impact récupération</div>
+          </div>
+        </div>
+        <!-- Steps chart -->
+        <div class="mb-4" style="height:140px">
+          <canvas id="stepsChart"></canvas>
+        </div>
+        <div class="sf-card">
+          <h4 class="text-xs font-bold mb-3" style="color:#64748B">Pourquoi les steps avant le cardio</h4>
+          <div class="space-y-2">
+            <div class="warn-row"><span class="text-sm">→</span><div class="warn-text">Moins de risque de catabolisme musculaire qu'un cardio intense en déficit</div></div>
+            <div class="warn-row"><span class="text-sm">→</span><div class="warn-text">Impact minimal sur la récupération musculaire entre les séances</div></div>
+            <div class="warn-row"><span class="text-sm">→</span><div class="warn-text">Augmente la dépense journalière sans déclencher la faim autant qu'un cardio</div></div>
+            <div class="warn-row"><span class="text-sm">→</span><div class="warn-text"><strong>Créer le déficit par les steps</strong> avant de réduire les calories</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= ERREURS ======= -->
+    <section id="erreurs" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Erreurs classiques à éviter</div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-3" style="color:#F43F5E">En sèche</h3>
+            <div class="space-y-2">
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Déficit trop agressif</strong> — ne jamais descendre de plus de 500 kcal sous maintenance</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Couper les glucides drastiquement</strong> — ils soutiennent le métabolisme thyroïdien</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Réduire l'intensité</strong> — maintenir les charges pour préserver le muscle</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Se fier à une seule pesée</strong> — faire la moyenne sur 7 jours</div></div>
+            </div>
+          </div>
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-3" style="color:#F43F5E">En PDM</h3>
+            <div class="space-y-2">
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Surplus trop important</strong> — au-delà de 400 kcal, c'est du gras inutile</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Arrêter les steps</strong> — ils évitent la prise de gras excessive</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Se précipiter sur une sèche</strong> sans avoir vraiment travaillé la masse</div></div>
+              <div class="warn-row"><span class="badge badge-rose">ÉVITER</span><div class="warn-text"><strong>Sauter les lipides</strong> — essentiels pour la testostérone</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= PRINCIPES ======= -->
+    <section id="principes" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Principes d'entraînement fondamentaux</div>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-2" style="color:#00D4FF">Surcharge progressive</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#64748B">Atteindre le haut de ta fourchette (8 reps) → augmenter la charge → revenir à 4 reps → progresser vers 8. Cycle sans fin.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-cyan">Charge</span><span class="badge badge-cyan">Volume</span><span class="badge badge-cyan">Densité</span></div>
+          </div>
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-2" style="color:#8B5CF6">Priorisation musculaire</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#64748B">Identifier ses groupes prioritaires et les placer en début de séance. Ne pas cannibaliser un groupe en priorisant un autre.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-violet">Analyse morpho</span><span class="badge badge-violet">Équilibre</span></div>
+          </div>
+          <div class="sf-card">
+            <h3 class="text-xs font-bold mb-2" style="color:#F59E0B">Gestion de l'effort (RIR)</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#64748B">S1 = 1 RIR (1 rep de l'échec). S2 = RIR -1 (2 reps au-delà de l'échec de S1). Échec sur isolations seulement.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-amber">S1 = 1 RIR</span><span class="badge badge-rose">S2 = RIR -1</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= SUPPLEMENTS ======= -->
+    <section id="supplements" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label cyan">Compléments alimentaires</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="sf-card">
+            <h4 class="text-xs font-bold mb-2" style="color:#00E587">Essentiels</h4>
+            <div class="space-y-1"><span class="badge badge-emerald block w-full justify-center mb-1">Whey protéine</span><span class="badge badge-emerald block w-full justify-center mb-1">Créatine mono.</span><span class="badge badge-emerald block w-full justify-center">Caféine</span></div>
+          </div>
+          <div class="sf-card">
+            <h4 class="text-xs font-bold mb-2" style="color:#00D4FF">Optionnels utiles</h4>
+            <div class="space-y-1"><span class="badge badge-cyan block w-full justify-center mb-1">Oméga-3</span><span class="badge badge-cyan block w-full justify-center mb-1">Vitamine D</span><span class="badge badge-cyan block w-full justify-center">Magnésium</span></div>
+          </div>
+          <div class="sf-card">
+            <h4 class="text-xs font-bold mb-2" style="color:#F59E0B">Context-dép.</h4>
+            <div class="space-y-1"><span class="badge badge-amber block w-full justify-center mb-1">Clear Whey</span><span class="badge badge-amber block w-full justify-center mb-1">Pre-workout</span><span class="badge badge-amber block w-full justify-center">Collagène</span></div>
+          </div>
+          <div class="sf-card">
+            <h4 class="text-xs font-bold mb-2" style="color:#F43F5E">À éviter</h4>
+            <div class="space-y-1"><span class="badge badge-rose block w-full justify-center mb-1">Brûle-graisses</span><span class="badge badge-rose block w-full justify-center mb-1">BCAA</span><span class="badge badge-rose block w-full justify-center">Gainers sucrés</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= SÉPARATEUR SCIENCE ======= -->
+    <div class="rounded-2xl px-6 py-5 mb-6 relative overflow-hidden" style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2)">
+      <div class="absolute top-0 left-0 right-0 h-px" style="background:linear-gradient(90deg,transparent,#8B5CF6,transparent)"></div>
+      <div class="text-xs font-mono font-bold tracking-widest uppercase mb-1" style="color:#8B5CF6">🔬 Section Science</div>
+      <div class="text-lg font-bold mb-1" style="color:#C4B5FD">Science de l'Hypertrophie — Guide Complet</div>
+      <p class="text-xs" style="color:#6D28D9">Basé sur la littérature scientifique (Schoenfeld, Helms, Morton, Krieger, Israetel — PubMed)</p>
+    </div>
+
+    <!-- ======= 1. HYPERTROPHIE ======= -->
+    <section id="hypertrophie" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">1. Qu'est-ce que l'hypertrophie musculaire ?</div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-sm font-semibold mb-3" style="color:#A78BFA">Définition simple</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">L'hypertrophie, c'est l'<strong style="color:#D1D9E8">augmentation du volume des fibres musculaires</strong>. Pas la création de nouvelles fibres — mais l'épaississement de celles qui existent déjà.<br><br><strong style="color:#D1D9E8">Hypertrophie myofibrillaire :</strong> ↑ protéines contractiles → force ET volume.<br><strong style="color:#D1D9E8">Hypertrophie sarcoplasmique :</strong> ↑ liquide intracellulaire → volume, moins de force relative.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-violet">Fibres musculaires</span><span class="badge badge-violet">Synthèse protéique</span><span class="badge badge-violet">Surcompensation</span></div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-sm font-semibold mb-3" style="color:#A78BFA">Le processus en 3 étapes</h3>
+            <div class="sf-step"><div class="step-num-v">1</div><div class="sf-step-text"><strong>Stimulus</strong><span>Entraîner le muscle avec suffisamment d'intensité → microdommages + signal stress cellulaire</span></div></div>
+            <div class="sf-step"><div class="step-num-v">2</div><div class="sf-step-text"><strong>Récupération</strong><span>Le corps répare (protéines + sommeil) → fibres reconstruites plus épaisses</span></div></div>
+            <div class="sf-step"><div class="step-num-v">3</div><div class="sf-step-text"><strong>Supercompensation</strong><span>Muscle légèrement plus grand pour mieux gérer le prochain stress → hypertrophie nette</span></div></div>
+            <div class="alert alert-violet mt-3 text-xs">Sans récupération et sans protéines suffisantes, le stimulus ne se transforme pas en muscle.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 2. MÉCANISMES ======= -->
+    <section id="mecanismes" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">2. Les 3 mécanismes déclencheurs <span class="badge badge-violet ml-2">PubMed</span></div>
+        <div class="alert alert-violet mb-4 text-xs"><strong>Schoenfeld (2010, 2013) :</strong> la <strong>tension mécanique</strong> est le mécanisme no. 1 — le plus important et le plus documenté.</div>
+        <div class="grid md:grid-cols-3 gap-4 mb-4">
+          <div class="rounded-xl p-4" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.2)">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">⚡ Tension mécanique — Priorité N°1</h3>
+            <div class="space-y-1 text-xs" style="color:#8892A4">
+              <div><strong style="color:#D1D9E8">C'est quoi :</strong> force générée dans la fibre sous charge lourde</div>
+              <div><strong style="color:#D1D9E8">Déclencheur :</strong> lourd, proche de l'échec, amplitude complète</div>
+              <div><strong style="color:#D1D9E8">Mécanisme :</strong> active les voies mTOR (signal direct de croissance)</div>
+              <div><strong style="color:#D1D9E8">En pratique :</strong> 4–8 reps, effort maximal</div>
+            </div>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.15)">
+            <h3 class="text-xs font-bold mb-3" style="color:#00E587">🔥 Stress métabolique</h3>
+            <div class="space-y-1 text-xs" style="color:#8892A4">
+              <div><strong style="color:#D1D9E8">C'est quoi :</strong> accumulation de lactate, H+ pendant l'effort</div>
+              <div><strong style="color:#D1D9E8">Déclencheur :</strong> séries longues, temps sous tension élevé</div>
+              <div><strong style="color:#D1D9E8">Rôle :</strong> secondaire mais réel — sécrétion d'IGF-1</div>
+              <div><strong style="color:#D1D9E8">En pratique :</strong> finisher, drop-sets, séries longues iso</div>
+            </div>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15)">
+            <h3 class="text-xs font-bold mb-3" style="color:#F59E0B">💥 Dommages musculaires</h3>
+            <div class="space-y-1 text-xs" style="color:#8892A4">
+              <div><strong style="color:#D1D9E8">C'est quoi :</strong> micro-lésions lors de la phase excentrique</div>
+              <div><strong style="color:#D1D9E8">Déclencheur :</strong> phase négative contrôlée, étirement en charge</div>
+              <div><strong style="color:#D1D9E8">Rôle :</strong> controversé — utile mais pas indispensable</div>
+              <div><strong style="color:#D1D9E8">En pratique :</strong> descente contrôlée 2–4s sur gros mouvements</div>
+            </div>
+          </div>
+        </div>
+        <!-- Tension mécanique chart -->
+        <div class="sf-card">
+          <div class="text-xs font-mono font-bold mb-3" style="color:#A78BFA">Importance relative des mécanismes (littérature scientifique)</div>
+          <div style="height:120px"><canvas id="mechChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 3. MÉTHODE 2 SÉRIES ======= -->
+    <section id="methode2" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">3. La méthode 2 séries par exercice</div>
+        <!-- Protocol card -->
+        <div class="rounded-xl p-5 mb-4" style="background:rgba(139,92,246,0.05);border:1.5px solid rgba(139,92,246,0.3)">
+          <h3 class="text-sm font-semibold mb-4" style="color:#A78BFA">🎯 Le protocole : 2 séries · 4–8 reps · Lourd · Proche/à l'échec</h3>
+          <!-- S1 -->
+          <div class="rounded-lg p-4 mb-3" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2)">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-bold" style="color:#C4B5FD">SÉRIE 1 — La série de référence</span>
+              <span class="badge badge-violet">1 RIR</span>
+            </div>
+            <div class="text-xs leading-relaxed" style="color:#A78BFA">
+              <strong style="color:#C4B5FD">Charge :</strong> lourde — 4 à 8 reps avec effort maximal<br>
+              <strong style="color:#C4B5FD">1 RIR</strong> = tu t'arrêtes à 1 rep de l'échec total. Il t'en reste UNE mais tu t'arrêtes.<br>
+              <strong style="color:#C4B5FD">Exemple :</strong> curl biceps 20kg → 6 reps, tu sais qu'à 7 tu crackeras → tu t'arrêtes à 6. C'est 1 RIR.
+            </div>
+            <!-- Rep blocks S1 -->
+            <div class="flex gap-1 mt-3 items-center flex-wrap">
+              <span class="text-xs font-mono mr-2" style="color:#64748B;width:48px">S1</span>
+              <div class="rep-block" style="background:rgba(139,92,246,0.3);color:#A78BFA;border:1px solid rgba(139,92,246,0.4)">R1</div>
+              <div class="rep-block" style="background:rgba(139,92,246,0.3);color:#A78BFA;border:1px solid rgba(139,92,246,0.4)">R2</div>
+              <div class="rep-block" style="background:rgba(139,92,246,0.3);color:#A78BFA;border:1px solid rgba(139,92,246,0.4)">R3</div>
+              <div class="rep-block" style="background:rgba(139,92,246,0.3);color:#A78BFA;border:1px solid rgba(139,92,246,0.4)">R4</div>
+              <div class="rep-block" style="background:rgba(139,92,246,0.3);color:#A78BFA;border:1px solid rgba(139,92,246,0.4)">R5</div>
+              <div class="rep-block" style="background:rgba(139,92,246,0.65);color:white;border:1px solid #8B5CF6">R6</div>
+              <div class="rep-block px-2" style="background:rgba(255,255,255,0.04);color:#64748B;border:1px dashed rgba(255,255,255,0.15)">🛑 1RIR</div>
+              <span class="text-xs ml-2" style="color:#64748B">20kg · 6 reps</span>
+            </div>
+          </div>
+          <!-- S2 -->
+          <div class="rounded-lg p-4 mb-3" style="background:rgba(244,63,94,0.07);border:1px solid rgba(244,63,94,0.2)">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-bold" style="color:#FCA5A5">SÉRIE 2 — Au-delà de l'échec</span>
+              <span class="badge badge-rose">RIR -1</span>
+            </div>
+            <div class="text-xs leading-relaxed" style="color:#FCA5A5">
+              <strong style="color:#FECACA">Charge :</strong> identique ou –5 à –10% si nécessaire<br>
+              <strong style="color:#FECACA">RIR -1</strong> = 2 reps AU-DELÀ de l'échec de S1. Si S1 = 6 reps (1 RIR), tu vises 8 reps en S2.<br>
+              <strong style="color:#FECACA">Logique :</strong> S1 préfatigue → au-delà de l'échec = recrutement maximal absolu des unités motrices.<br>
+              <strong style="color:#FECACA">⚠️ Attention :</strong> réservé aux isolations et exercices sécurisés. Jamais sur squat barre / soulevé.
+            </div>
+            <!-- Rep blocks S2 -->
+            <div class="flex gap-1 mt-3 items-center flex-wrap">
+              <span class="text-xs font-mono mr-2" style="color:#64748B;width:48px">S2</span>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R1</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R2</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R3</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R4</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R5</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.2);color:#FCA5A5;border:1px solid rgba(244,63,94,0.3)">R6</div>
+              <div class="rep-block" style="background:rgba(244,63,94,0.45);color:#FECACA;border:1px solid rgba(244,63,94,0.5)">R7</div>
+              <div class="rep-block" style="background:#F43F5E;color:white;border:1px solid #F43F5E">R8🔥</div>
+              <span class="text-xs ml-2" style="color:#FCA5A5">20kg · 8 reps (RIR -1)</span>
+            </div>
+          </div>
+          <div class="alert alert-violet text-xs"><strong>Pourquoi seulement 2 séries ?</strong> Krieger (2010), Schoenfeld (2017) : pour un débutant/intermédiaire, 2 séries bien exécutées proches de l'échec &gt; 4–5 séries médiocres. Qualité &gt; quantité.</div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Pourquoi 4–8 reps ?</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Zone de <strong style="color:#D1D9E8">tension mécanique maximale</strong>. Charges suffisamment lourdes pour activer au max les fibres rapides (type II) — celles avec le plus grand potentiel de croissance.<br><br>Schoenfeld (2017) : 6–30 reps peut produire de l'hypertrophie comparable <em>si effort proche de l'échec</em>. Mais 4–8 reps lourd = tension maximale par rep.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-violet">Fibres type II</span><span class="badge badge-violet">Tension max/rep</span></div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Proximité de l'échec</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Le recrutement maximal des unités motrices n'arrive qu'en <strong style="color:#D1D9E8">fin de série</strong>, quand les fibres "faciles" sont épuisées. 8 reps faciles = stimulus insuffisant = progression nulle.<br><br>Règle : S1 = 1 RIR · S2 = RIR -1 (au-delà de l'échec).</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-rose">Sans effort = sans croissance</span><span class="badge badge-violet">S1 = 1 RIR</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 4. SURCHARGE ======= -->
+    <section id="surcharge" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">4. La surcharge progressive — Le moteur de toute progression</div>
+        <div class="alert alert-violet mb-4 text-xs"><strong>Loi fondamentale :</strong> pour que le muscle continue de croître, il faut que le stimulus augmente au fil du temps. Un muscle adapté à une charge ne progressera plus avec cette même charge.</div>
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Comment progresser concrètement</h3>
+            <div class="sf-step"><div class="step-num-v">1</div><div class="sf-step-text">Atteindre le haut de la fourchette (8 reps) avec 1 RIR<span>Tu as réussi → tu es prêt à progresser</span></div></div>
+            <div class="sf-step"><div class="step-num-v">2</div><div class="sf-step-text">Séance suivante : augmenter la charge de 1,25–5kg<span>Adapté au groupe musculaire ciblé</span></div></div>
+            <div class="sf-step"><div class="step-num-v">3</div><div class="sf-step-text">Tu retombes en bas de fourchette (4–5 reps) → normal<span>La charge plus lourde justifie moins de reps</span></div></div>
+            <div class="sf-step"><div class="step-num-v">4</div><div class="sf-step-text">Tu reprogresses vers 8 reps → recommence<span>Cycle infini de progression</span></div></div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Les formes de surcharge progressive</h3>
+            <div class="warn-row"><span class="text-sm">⬆</span><div class="warn-text"><strong>Augmentation de charge :</strong> même reps, plus lourd → forme principale</div></div>
+            <div class="warn-row"><span class="text-sm">➕</span><div class="warn-text"><strong>Augmentation de reps :</strong> même charge, 1 rep de plus → valide avant de monter</div></div>
+            <div class="warn-row"><span class="text-sm">📊</span><div class="warn-text"><strong>Volume :</strong> plus de séries sur la semaine → avancé, prudemment</div></div>
+            <div class="warn-row"><span class="text-sm">🎯</span><div class="warn-text"><strong>Technique :</strong> même charge mais amplitude complète → stimule plus</div></div>
+          </div>
+        </div>
+        <!-- Progression chart -->
+        <div class="sf-card">
+          <div class="text-xs font-mono font-bold mb-3" style="color:#A78BFA">Cycle de surcharge progressive — simulation 8 semaines</div>
+          <div style="height:160px"><canvas id="progressChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 5. VOLUME ======= -->
+    <section id="volume" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">5. Volume d'entraînement <span class="badge badge-violet ml-2">PubMed</span></div>
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Recommandations SF (tous niveaux)</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Schoenfeld (2017) + Krieger (2010) : relation dose-réponse entre volume et hypertrophie — jusqu'à un certain point. <strong style="color:#D1D9E8">6–10 séries par groupe musculaire par semaine = sweet spot universel.</strong></p>
+            <div class="overflow-x-auto rounded-lg border" style="border-color:rgba(139,92,246,0.2)">
+              <table class="sf-table sf-table-violet">
+                <thead><tr><th>Niveau</th><th>Séries/muscle/sem.</th><th>Fréquence</th></tr></thead>
+                <tbody>
+                  <tr><td>Débutant (0–1 an)</td><td class="font-mono font-bold" style="color:#A78BFA">6–10</td><td>2x/sem.</td></tr>
+                  <tr><td>Intermédiaire (1–3 ans)</td><td class="font-mono font-bold" style="color:#A78BFA">6–10</td><td>2x/sem.</td></tr>
+                  <tr><td>Avancé (3+ ans)</td><td class="font-mono font-bold" style="color:#A78BFA">6–10</td><td>2–3x/sem.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Volume utile vs volume inutile</h3>
+            <div class="warn-row"><span class="badge badge-emerald">UTILE</span><div class="warn-text"><strong>Séries proches de l'échec</strong> (1 RIR / RIR -1) avec technique solide</div></div>
+            <div class="warn-row"><span class="badge badge-emerald">UTILE</span><div class="warn-text"><strong>Séries qui progressent</strong> semaine après semaine</div></div>
+            <div class="warn-row"><span class="badge badge-rose">INUTILE</span><div class="warn-text"><strong>Séries trop légères</strong> sans effort → aucune tension mécanique</div></div>
+            <div class="warn-row"><span class="badge badge-rose">INUTILE</span><div class="warn-text"><strong>Volume excessif</strong> sans récupération → sur-entraînement, régression</div></div>
+            <div class="alert alert-violet mt-3 text-xs">2 séries × 5 exercices = 10 séries/muscle/sem. C'est le sweet spot avec 2 séances par muscle.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 6. FRÉQUENCE ======= -->
+    <section id="frequence" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">6. Fréquence d'entraînement <span class="badge badge-violet ml-2">PubMed</span></div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Synthèse protéique musculaire (MPS)</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Après une séance, la MPS est élevée pendant <strong style="color:#D1D9E8">24 à 72 heures</strong>. Split body-builder classique (1x/sem) = "gaspillage" des jours de construction.<br><br>Méta-analyse Schoenfeld (2016) : stimuler chaque muscle <strong style="color:#D1D9E8">2 fois par semaine</strong> est supérieur à 1 fois.</p>
+          </div>
+          <div class="overflow-x-auto rounded-xl border" style="border-color:rgba(139,92,246,0.2)">
+            <table class="sf-table sf-table-violet">
+              <thead><tr><th>Fréquence</th><th>Efficacité</th><th>Pour qui</th></tr></thead>
+              <tbody>
+                <tr><td>1x/semaine</td><td><span class="badge badge-amber">Sous-optimal</span></td><td>Très débutant</td></tr>
+                <tr><td>2x/semaine</td><td><span class="badge badge-emerald">Optimal ✓</span></td><td>Déb. → Interm.</td></tr>
+                <tr><td>3x/semaine</td><td><span class="badge badge-emerald">Légèrement sup.</span></td><td>Interm. → Avancé</td></tr>
+                <tr><td>4x/semaine+</td><td><span class="badge badge-amber">Dim. returns</span></td><td>Avancé seulement</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 7. REPOS ======= -->
+    <section id="repos" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">7. Temps de repos entre les séries <span class="badge badge-violet ml-2">PubMed</span></div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Durée optimale selon l'objectif</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Schoenfeld (2016) : des temps de repos <strong style="color:#D1D9E8">plus longs (3–5 min) favorisent l'hypertrophie</strong> davantage que des repos courts (1 min).<br><br>Raison : repos suffisant = maintenir la qualité des séries suivantes = tension maximale à chaque série.</p>
+            <div class="overflow-x-auto rounded-lg border" style="border-color:rgba(139,92,246,0.2)">
+              <table class="sf-table sf-table-violet">
+                <thead><tr><th>Type d'exercice</th><th>Repos SF</th></tr></thead>
+                <tbody>
+                  <tr><td>Polyarticulaires lourds (squat, presse)</td><td class="font-mono font-bold" style="color:#A78BFA">3' – 4'</td></tr>
+                  <tr><td>Composés moyens (développé, tirage)</td><td class="font-mono font-bold" style="color:#A78BFA">3' – 4'</td></tr>
+                  <tr><td>Isolations (curl, extension, élév. lat.)</td><td class="font-mono font-bold" style="color:#A78BFA">2'30 – 3'</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Le mythe du "repos court = plus de croissance"</h3>
+            <div class="warn-row"><span class="badge badge-rose">MYTHE</span><div class="warn-text">Repos courts → plus de GH → plus de muscle. <strong>Faux.</strong> L'augmentation transitoire de GH n'a pas d'impact prouvé sur l'hypertrophie à long terme.</div></div>
+            <div class="warn-row"><span class="badge badge-rose">MYTHE</span><div class="warn-text">"La brûlure = la croissance." <strong>Partiellement faux.</strong> Brûlure = stress métabolique = mécanisme secondaire seulement.</div></div>
+            <div class="warn-row"><span class="badge badge-emerald">RÉALITÉ</span><div class="warn-text">Repos suffisant = tu peux mettre plus lourd à la série suivante = plus de tension = plus d'hypertrophie.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 8. NEURO ======= -->
+    <section id="neuro" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">8. Connexion neuromusculaire & Technique</div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Mind-Muscle Connection</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Calatayud (2016), Snyder (2012) : <strong style="color:#D1D9E8">contracter intentionnellement le muscle ciblé</strong> augmente l'activation de 20–30% — sans changer la charge.<br><br>Pendant un curl : ne pense pas à "lever le poids" mais à "contracter le biceps".</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-violet">Contraction intentionnelle</span><span class="badge badge-violet">Visualisation</span></div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-2" style="color:#A78BFA">Amplitude complète (Full ROM)</h3>
+            <p class="text-xs leading-relaxed mb-3" style="color:#8892A4">Pallarés (2021), Pedrosa (2022) : full ROM stimule davantage l'hypertrophie, notamment en position d'étirement.<br><br><strong style="color:#D1D9E8">Étirement sous charge</strong> = position où le muscle est à la fois étiré ET sous tension → stimulus hypertrophique maximal.</p>
+            <div class="flex flex-wrap gap-1"><span class="badge badge-emerald">Full ROM = + croissance</span><span class="badge badge-rose">Demi-mvt = sous-stimulation</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 9. RÉCUPÉRATION ======= -->
+    <section id="recuperation" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">9. Récupération — Le muscle pousse pendant le repos</div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="rounded-xl p-4 text-center" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15)">
+            <div class="metric-val text-2xl" style="color:#A78BFA">7–9h</div>
+            <div class="metric-sub text-center">Sommeil minimum<br>MPS max pendant sommeil profond</div>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15)">
+            <div class="metric-val text-2xl" style="color:#A78BFA">24h</div>
+            <div class="metric-sub text-center">Fenêtre anabolique réelle<br>Pas seulement 30 min post-workout</div>
+          </div>
+          <div class="rounded-xl p-4 text-center" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15)">
+            <div class="metric-val text-2xl" style="color:#A78BFA">48–72h</div>
+            <div class="metric-sub text-center">Récup entre séances<br>minimum (même muscle)</div>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Le sommeil — levier le plus sous-estimé</h3>
+            <div class="warn-row"><span class="text-sm">🌙</span><div class="warn-text"><strong>GH :</strong> secrétée à 70–80% pendant le sommeil profond (NREM). Sans sommeil → pas de GH → récupération impactée.</div></div>
+            <div class="warn-row"><span class="text-sm">💪</span><div class="warn-text"><strong>Testostérone :</strong> chaque heure perdue (sous 7h) réduit le taux de façon mesurable (Leproult 2011).</div></div>
+            <div class="warn-row"><span class="text-sm">⚡</span><div class="warn-text"><strong>Performance :</strong> 1 nuit à 6h = –11% de force maximale (Knowles 2018).</div></div>
+          </div>
+          <div class="sf-card-violet border">
+            <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Optimiser la récupération au quotidien</h3>
+            <div class="sf-step"><div class="step-num-v">1</div><div class="sf-step-text">Protéines distribuées sur la journée<span>3–5 prises de 30–50g espacées de 3–5h (Areta 2013)</span></div></div>
+            <div class="sf-step"><div class="step-num-v">2</div><div class="sf-step-text">Protéines avant le coucher<span>Caséine ou repas protéiné → MPS nocturne (Res 2012)</span></div></div>
+            <div class="sf-step"><div class="step-num-v">3</div><div class="sf-step-text">Hydratation suffisante<span>1% déshydratation = –10% de force. Viser 35–45ml/kg/j.</span></div></div>
+            <div class="sf-step"><div class="step-num-v">4</div><div class="sf-step-text">Gestion du stress (cortisol)<span>Stress chronique → cortisol élevé → catabolisme musculaire</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= 10. NUTRITION SCIENCE ======= -->
+    <section id="nutrition-sci" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">10. Nutrition spécifique à l'hypertrophie <span class="badge badge-violet ml-2">PubMed</span></div>
+        <div class="grid md:grid-cols-3 gap-4 mb-4">
+          <div class="rounded-xl p-4" style="background:rgba(0,229,135,0.05);border:1px solid rgba(0,229,135,0.15)">
+            <h4 class="text-xs font-bold mb-2" style="color:#00E587">Protéines — Le pilier</h4>
+            <p class="text-xs leading-relaxed" style="color:#8892A4"><strong style="color:#D1D9E8">1,6–2,2 g/kg/j</strong> — optimal selon Morton (2018), méta-analyse 49 études. Au-delà, gains marginaux.<br><br>Timing : 3–5 prises. Viser <strong style="color:#D1D9E8">3g de leucine</strong> par repas (~30g whey ou viande).</p>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15)">
+            <h4 class="text-xs font-bold mb-2" style="color:#00D4FF">Glucides — Le carburant</h4>
+            <p class="text-xs leading-relaxed" style="color:#8892A4">Carburant principal de l'entraînement anaérobie (ATP-PC + glycolyse). Muscle plein en glycogène = séances de qualité supérieure.<br><br>Glucides avant (énergie) et après (rechargement + récupération).</p>
+          </div>
+          <div class="rounded-xl p-4" style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15)">
+            <h4 class="text-xs font-bold mb-2" style="color:#F59E0B">Lipides — L'essentiel hormonal</h4>
+            <p class="text-xs leading-relaxed" style="color:#8892A4">Précurseurs des hormones stéroïdiennes. Descendre sous 0,5g/kg entraîne une chute hormonale documentée.<br><br><strong style="color:#D1D9E8">Minimum :</strong> 0,7g/kg. <strong style="color:#D1D9E8">Optimal :</strong> 0,9–1,2g/kg.</p>
+          </div>
+        </div>
+        <!-- Créatine card -->
+        <div class="sf-card-violet border">
+          <h3 class="text-xs font-bold mb-3" style="color:#A78BFA">Créatine monohydrate — Le seul supplément prouvé pour l'hypertrophie</h3>
+          <div class="grid md:grid-cols-2 gap-4">
+            <p class="text-xs leading-relaxed" style="color:#8892A4">↑ phosphocréatine intramusculaire → +1–2 reps par série → plus de volume à intensité élevée → plus de stimulus → plus de croissance.</p>
+            <div class="overflow-x-auto rounded-lg border" style="border-color:rgba(139,92,246,0.2)">
+              <table class="sf-table sf-table-violet">
+                <thead><tr><th>Paramètre</th><th>Valeur</th></tr></thead>
+                <tbody>
+                  <tr><td>Dose quotidienne</td><td class="font-mono" style="color:#A78BFA">3–5g / jour</td></tr>
+                  <tr><td>Timing</td><td class="font-mono" style="color:#A78BFA">N'importe quand</td></tr>
+                  <tr><td>Forme</td><td class="font-mono" style="color:#A78BFA">Monohydrate uniquement</td></tr>
+                  <tr><td>Prix</td><td class="font-mono" style="color:#A78BFA">~1€ / mois</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======= GLOSSAIRE ======= -->
+    <section id="glossaire" class="section-anchor">
+      <div class="sf-card mb-6">
+        <div class="section-label violet">Glossaire — Les termes essentiels</div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="space-y-3">
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">RIR (Reps In Reserve)</div><div class="text-xs" style="color:#64748B">Nombre de reps que tu pourrais encore faire avant l'échec total. 1 RIR = 1 rep de l'échec. Plus c'est bas, plus l'effort est intense.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Échec musculaire</div><div class="text-xs" style="color:#64748B">Le point où tu ne peux plus effectuer une rep avec bonne technique. 0 RIR. À éviter sauf sur les isolations.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">MPS (Muscle Protein Synthesis)</div><div class="text-xs" style="color:#64748B">Synthèse protéique musculaire — processus par lequel le corps reconstruit et épaissit les fibres. Stimulée par l'entraînement ET les protéines.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">mTOR</div><div class="text-xs" style="color:#64748B">Voie de signalisation cellulaire activée par la tension mécanique et les acides aminés. Le "bouton ON" de la croissance musculaire.</div></div>
+            <div><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Volume (sets × reps)</div><div class="text-xs" style="color:#64748B">Quantité totale de travail. S'exprime en séries/groupe musculaire/semaine. Doit progresser pour continuer à stimuler.</div></div>
+          </div>
+          <div class="space-y-3">
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Tension mécanique</div><div class="text-xs" style="color:#64748B">Force exercée sur les fibres lors d'une contraction sous charge. Mécanisme no. 1 de l'hypertrophie. Maximisée par charges lourdes + proximité de l'échec.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Surcharge progressive</div><div class="text-xs" style="color:#64748B">Le stimulus doit augmenter au fil du temps pour continuer à produire des adaptations. Sans ça, il n'y a pas de progression.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Full ROM (Range of Motion)</div><div class="text-xs" style="color:#64748B">Amplitude complète de mouvement. Recommandée pour maximiser le stimulus, notamment en étirement sous charge en fin de course.</div></div>
+            <div class="pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05)"><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Leucine</div><div class="text-xs" style="color:#64748B">Acide aminé essentiel — principal activateur de la MPS. Viser 3g par repas protéiné = ~30g de whey, viande, ou œufs.</div></div>
+            <div><div class="text-sm font-semibold mb-1" style="color:#A78BFA">Supercompensation</div><div class="text-xs" style="color:#64748B">Phénomène par lequel le muscle se reconstruit légèrement plus fort. Nécessite un stimulus adéquat ET une récupération complète.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+ 
+
+  </div>
+</main>
+
+<script>
+function app() {
+  return {
+    sidebarOpen: false,
+    activeSection: 'philosophie',
+    phase: 'seche',
+    prog: 'fb',
+    macroChart: null,
+
+    init() {
+      this.$nextTick(() => {
+        calcMacros();
+        this.initCharts();
+        this.initScrollSpy();
+      });
+    },
+
+    initScrollSpy() {
+      const sections = document.querySelectorAll('section[id]');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) this.activeSection = e.target.id; });
+      }, { rootMargin: '-40% 0px -55% 0px' });
+      sections.forEach(s => observer.observe(s));
+    },
+
+    initCharts() {
+      Chart.defaults.color = '#64748B';
+      Chart.defaults.font.family = "'JetBrains Mono', monospace";
+
+      // Steps chart
+      const stepsCtx = document.getElementById('stepsChart')?.getContext('2d');
+      if (stepsCtx) {
+        new Chart(stepsCtx, {
+          type: 'bar',
+          data: {
+            labels: ['5k', '8k', '10k', '12k', '15k', '18k', '20k'],
+            datasets: [{
+              label: 'Dépense additionnelle (kcal)',
+              data: [0, 210, 350, 490, 700, 910, 1050],
+              backgroundColor: 'rgba(0,229,135,0.2)',
+              borderColor: '#00E587',
+              borderWidth: 1,
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } }
+            }
+          }
+        });
+      }
+
+      // Mechanism chart
+      const mechCtx = document.getElementById('mechChart')?.getContext('2d');
+      if (mechCtx) {
+        new Chart(mechCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Tension mécanique', 'Stress métabolique', 'Dommages musculaires'],
+            datasets: [{
+              label: 'Impact relatif sur l\'hypertrophie (%)',
+              data: [70, 20, 10],
+              backgroundColor: ['rgba(139,92,246,0.4)', 'rgba(0,229,135,0.3)', 'rgba(245,158,11,0.3)'],
+              borderColor: ['#8B5CF6', '#00E587', '#F59E0B'],
+              borderWidth: 1, borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => v + '%', font: { size: 10 } } },
+              y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+          }
+        });
+      }
+
+      // Progressive overload chart
+      const progCtx = document.getElementById('progressChart')?.getContext('2d');
+      if (progCtx) {
+        const weeks = ['S1','S2','S3','S4','S5','S6','S7','S8'];
+        new Chart(progCtx, {
+          type: 'line',
+          data: {
+            labels: weeks,
+            datasets: [
+              { label: 'Charge (kg)', data: [60,60,62.5,62.5,65,65,67.5,70], borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#8B5CF6' },
+              { label: 'Reps', data: [6,8,5,7,5,8,6,4], borderColor: '#00D4FF', backgroundColor: 'rgba(0,212,255,0.05)', fill: false, tension: 0.3, borderDash: [4,4], pointRadius: 3, pointBackgroundColor: '#00D4FF' }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } } },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } }
+            }
+          }
+        });
+      }
+
+      // Volume curve chart
+      const volCtx = document.getElementById('volumeChart')?.getContext('2d');
+      if (volCtx) {
+        new Chart(volCtx, {
+          type: 'line',
+          data: {
+            labels: ['0','2','4','6','8','10','12','14','16','18','20','22+'],
+            datasets: [{
+              label: 'Hypertrophie relative',
+              data: [0, 15, 35, 55, 72, 85, 93, 98, 100, 99, 93, 80],
+              borderColor: '#A78BFA',
+              backgroundColor: 'rgba(139,92,246,0.1)',
+              fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#A78BFA',
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => 'Hypertrophie : ' + ctx.raw + '/100' } }
+            },
+            scales: {
+              x: { title: { display: true, text: 'Séries/muscle/semaine', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } } },
+              y: { title: { display: true, text: 'Efficacité (%)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 } }, max: 110, min: 0 }
+            }
+          }
+        });
+      }
+    }
+  };
+}
+
+// ============= TDEE CALCULATOR =============
+let macroChart = null;
+
+function calcMacros() {
+  const sexe = document.getElementById('sexe')?.value || 'm';
+  const age  = parseFloat(document.getElementById('age')?.value)    || 25;
+  const poids = parseFloat(document.getElementById('poids')?.value)  || 80;
+  const taille = parseFloat(document.getElementById('taille')?.value)|| 175;
+  const act  = parseFloat(document.getElementById('activite')?.value)|| 1.55;
+  const obj  = document.getElementById('objectif')?.value || 'maint';
+
+  // Mifflin-St Jeor
+  let bmr = sexe === 'm'
+    ? (10 * poids) + (6.25 * taille) - (5 * age) + 5
+    : (10 * poids) + (6.25 * taille) - (5 * age) - 161;
+
+  const maint = Math.round(bmr * act);
+  const bmrR = Math.round(bmr);
+
+  const defSurMap = { seche: -300, seche_agg: -500, maint: 0, pdm: 200, pdm_agg: 400 };
+  const cible = maint + (defSurMap[obj] || 0);
+
+  const isSeche = obj.startsWith('seche');
+  const proto = Math.round(poids * (isSeche ? 2.2 : 2.0));
+  const lip   = Math.round(poids * 0.9);
+  const pKcal = proto * 4, lKcal = lip * 9;
+  const gKcal = Math.max(0, cible - pKcal - lKcal);
+  const gluc  = Math.round(gKcal / 4);
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('bmr-val', bmrR + ' kcal');
+  set('maint-cal', maint + ' kcal');
+  set('cible-cal', cible + ' kcal');
+  set('proto',   proto + 'g · ' + pKcal + ' kcal');
+  set('lipides', lip + 'g · ' + lKcal + ' kcal');
+  set('glucides', gluc + 'g · ' + gKcal + ' kcal');
+
+  // Macro bar
+  const total = pKcal + lKcal + gKcal;
+  const barEl = document.getElementById('macro-bar-visual');
+  if (barEl && total > 0) {
+    const pPct = (pKcal/total*100).toFixed(1);
+    const lPct = (lKcal/total*100).toFixed(1);
+    const gPct = (gKcal/total*100).toFixed(1);
+    barEl.innerHTML = `
+      <div style="flex:${pKcal};background:linear-gradient(90deg,#00E587,#00C97A)"></div>
+      <div style="flex:${lKcal};background:linear-gradient(90deg,#F59E0B,#EF4444)"></div>
+      <div style="flex:${gKcal};background:linear-gradient(90deg,#00D4FF,#8B5CF6)"></div>`;
+    const legEl = document.getElementById('macro-legend');
+    if (legEl) legEl.innerHTML = `
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#00E587;flex-shrink:0"></span>P ${pPct}%</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#F59E0B;flex-shrink:0"></span>L ${lPct}%</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#00D4FF;flex-shrink:0"></span>G ${gPct}%</span>`;
+  }
+
+  // Donut
+  const ctx = document.getElementById('macroDonut')?.getContext('2d');
+  if (ctx) {
+    if (macroChart) macroChart.destroy();
+    macroChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [pKcal, lKcal, gKcal],
+          backgroundColor: ['rgba(0,229,135,0.7)', 'rgba(245,158,11,0.7)', 'rgba(0,212,255,0.7)'],
+          borderColor: ['#00E587','#F59E0B','#00D4FF'],
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        cutout: '70%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ['P','L','G'][ctx.dataIndex] + ' ' + ctx.raw + ' kcal' } }
+        }
+      }
+    });
+  }
+}
+
+function showPhase(id, btn) {
+  document.querySelectorAll('[id^="phase-"]').forEach(el => el.classList.remove('show'));
+  document.getElementById('phase-' + id)?.classList.add('show');
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+function showProg(id, btn) {
+  document.querySelectorAll('[id^="prog-"]').forEach(el => el.classList.remove('show'));
+  document.getElementById('prog-' + id)?.classList.add('show');
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
